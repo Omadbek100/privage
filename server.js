@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-
+require("dotenv").config();
 const app = express();
 
 app.use(cors());
@@ -9,7 +9,7 @@ app.use(express.json());
 
 // Demo API keys
 const apiKeys = [
-    "priv_live_demo123"
+    process.env.API_KEY
 ];
 
 
