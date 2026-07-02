@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const Company = require("./models/Company");
+const Verification = require("./models/Verification");
 
 require("dotenv").config();
 
@@ -101,6 +102,12 @@ app.post("/verify-age", async (req, res) => {
     }
 
     const allowed = userAge >= minimumAge;
+    await Verification.create({
+    company: company._id,
+    minimumAge,
+    userAge,
+    allowed
+});
 
     res.json({
         success: true,
@@ -110,10 +117,52 @@ app.post("/verify-age", async (req, res) => {
         requiredAge: minimumAge
     });
 });
+// Get verification history
+app.get("/verifications", async (req, res) => {
+    app.get("/hello", (req, res) => {
+    res.json({
+        message: "hello"
+    });
+});
+
+    const { apiKey } = req.query;
+
+    if (!apiKey) {
+        return res.status(401).json({
+            success: false,
+            message: "API key required"
+        });
+    }
+
+    const company = await Company.findOne({ apiKey });
+
+    if (!company) {
+        return res.status(403).json({
+            success: false,
+            message: "Invalid API key"
+        });
+    }
+
+    const verifications = await Verification.find({
+        company: company._id
+    }).sort({ createdAt: -1 });
+
+    res.json({
+        success: true,
+        total: verifications.length,
+        verifications
+    });
+
+});
+app.get("/routes", (req, res) => {
+    res.json({
+        ok: true
+    });
+});
 
 /* =========================
    SERVER START
 ========================= */
 app.listen(3000, () => {
     console.log("🚀 PrivAge API running on port 3000");
-});
+}); 
