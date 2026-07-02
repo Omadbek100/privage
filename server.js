@@ -11,9 +11,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* =========================
-   MongoDB CONNECT
-========================= */
+
+// MongoDB
 mongoose.connect(process.env.MONGO_URL)
 .then(() => {
     console.log("🗄️ MongoDB connected");
@@ -22,42 +21,41 @@ mongoose.connect(process.env.MONGO_URL)
     console.log("MongoDB error:", error);
 });
 
-/* =========================
-   HEALTH CHECK
-========================= */
+
+// HOME
 app.get("/", (req, res) => {
     res.json({
         project: "PrivAge",
-        version: "1.1.0",
+        version: "1.2.0",
         status: "running"
     });
 });
 
-/* =========================
-   TEST ROUTE
-========================= */
+
+// TEST
 app.get("/test", (req, res) => {
     res.json({
         message: "PrivAge test ishladi"
     });
 });
 
-/* =========================
-   CREATE COMPANY (API KEY GENERATOR)
-========================= */
+
+// CREATE COMPANY
 app.post("/companies", async (req, res) => {
 
     const { name, email } = req.body;
 
     if (!name || !email) {
         return res.status(400).json({
-            success: false,
-            message: "name and email required"
+            success:false,
+            message:"name and email required"
         });
     }
 
+
     const apiKey =
-        "priv_live_" + Math.random().toString(36).substring(2, 15);
+        "priv_live_" + Math.random().toString(36).substring(2,15);
+
 
     const company = await Company.create({
         name,
@@ -65,104 +63,140 @@ app.post("/companies", async (req, res) => {
         apiKey
     });
 
+
     res.json({
-        success: true,
+        success:true,
         company
     });
+
 });
 
-/* =========================
-   VERIFY AGE (REAL DB VERSION)
-========================= */
-app.post("/verify-age", async (req, res) => {
 
-    const { apiKey, minimumAge, userAge } = req.body;
+// VERIFY AGE
+app.post("/verify-age", async (req,res)=>{
 
-    if (!apiKey) {
-        return res.status(401).json({
-            success: false,
-            message: "API key required"
-        });
-    }
+    const {apiKey, minimumAge, userAge}=req.body;
 
-    const company = await Company.findOne({ apiKey });
 
-    if (!company) {
+    const company = await Company.findOne({apiKey});
+
+
+    if(!company){
         return res.status(403).json({
-            success: false,
-            message: "Invalid API key"
+            success:false,
+            message:"Invalid API key"
         });
     }
 
-    if (minimumAge === undefined || userAge === undefined) {
-        return res.status(400).json({
-            success: false,
-            message: "minimumAge and userAge are required"
-        });
-    }
 
     const allowed = userAge >= minimumAge;
+
+
     await Verification.create({
-    company: company._id,
-    minimumAge,
-    userAge,
-    allowed
-});
+        company: company._id,
+        minimumAge,
+        userAge,
+        allowed
+    });
+
 
     res.json({
-        success: true,
-        company: company.name,
-        verified: true,
+        success:true,
+        company:company.name,
+        verified:true,
         allowed,
-        requiredAge: minimumAge
+        requiredAge:minimumAge
     });
-});
-// Get verification history
-app.get("/verifications", async (req, res) => {
-    app.get("/hello", (req, res) => {
-    res.json({
-        message: "hello"
-    });
+
 });
 
-    const { apiKey } = req.query;
 
-    if (!apiKey) {
-        return res.status(401).json({
-            success: false,
-            message: "API key required"
-        });
-    }
 
-    const company = await Company.findOne({ apiKey });
+// HISTORY
+app.get("/verifications", async(req,res)=>{
 
-    if (!company) {
+    const {apiKey}=req.query;
+
+
+    const company = await Company.findOne({apiKey});
+
+
+    if(!company){
         return res.status(403).json({
-            success: false,
-            message: "Invalid API key"
+            success:false,
+            message:"Invalid API key"
         });
     }
 
-    const verifications = await Verification.find({
-        company: company._id
-    }).sort({ createdAt: -1 });
+
+    const verifications =
+        await Verification.find({
+            company:company._id
+        })
+        .sort({createdAt:-1});
+
 
     res.json({
-        success: true,
-        total: verifications.length,
+        success:true,
+        total:verifications.length,
         verifications
     });
 
 });
-app.get("/routes", (req, res) => {
+
+
+
+// STATS
+app.get("/stats", async(req,res)=>{
+
+    const {apiKey}=req.query;
+
+
+    const company = await Company.findOne({apiKey});
+
+
+    if(!company){
+        return res.status(403).json({
+            success:false,
+            message:"Invalid API key"
+        });
+    }
+
+
+    const total =
+        await Verification.countDocuments({
+            company:company._id
+        });
+
+
+    const allowed =
+        await Verification.countDocuments({
+            company:company._id,
+            allowed:true
+        });
+
+
+    const rejected =
+        await Verification.countDocuments({
+            company:company._id,
+            allowed:false
+        });
+
+
     res.json({
-        ok: true
+        success:true,
+        company:company.name,
+        statistics:{
+            total,
+            allowed,
+            rejected
+        }
     });
+
 });
 
-/* =========================
-   SERVER START
-========================= */
-app.listen(3000, () => {
+
+// SERVER
+app.listen(3000,()=>{
     console.log("🚀 PrivAge API running on port 3000");
-}); 
+});
